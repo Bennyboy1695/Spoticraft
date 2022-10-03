@@ -2,27 +2,14 @@ package mine.block.spoticraft.client.ui;
 
 import com.github.winterreisender.webviewko.WebviewKo;
 import com.mojang.blaze3d.systems.RenderSystem;
-import dev.lambdaurora.spruceui.Position;
-import dev.lambdaurora.spruceui.screen.SpruceScreen;
-import dev.lambdaurora.spruceui.widget.SpruceButtonWidget;
+import com.mojang.blaze3d.vertex.PoseStack;
 import mine.block.spoticraft.client.SpoticraftClient;
 import mine.block.spoticraft.client.ui.widget.SpotifyPlaylistItemWidget;
 import mine.block.spoticraft.client.ui.widget.SpotifyTextButtonWidget;
 import mine.block.spotify.SpotifyHandler;
-import mine.block.spotify.SpotifyUtils;
-import net.fabricmc.loader.impl.util.UrlUtil;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawableHelper;
-import net.minecraft.client.gui.screen.ConfirmLinkScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.SplashOverlay;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Util;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import org.apache.hc.core5.http.ParseException;
 import se.michaelthelin.spotify.enums.ProductType;
 import se.michaelthelin.spotify.exceptions.SpotifyWebApiException;
@@ -37,33 +24,29 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public class SpotifyScreen extends SpruceScreen {
+public class SpotifyScreen extends Screen {
     private final boolean connected;
     private final Screen parent;
     public float percentageDone;
     public float progress;
 
     public SpotifyScreen(Screen parent) {
-        super(Text.empty());
+        super(Component.nullToEmpty(null));
         this.parent = parent;
         this.connected = SpotifyHandler.SPOTIFY_API != null;
     }
 
     @Override
-    public boolean shouldPause() {
-        return false;
-    }
-
-    @Override
-    public void renderBackground(MatrixStack matrices) {
-        fill(matrices, 0, 0, this.width, this.height, 0xFF121212);
+    public void renderBackground(PoseStack poseStack) {
+        fill(poseStack, 0, 0, this.width, this.height, 0xFF121212);
     }
 
     @Override
     protected void init() {
         super.init();
-        this.addDrawableChild(new SpotifyTextButtonWidget(Position.of(2, height - 22), 46, 20, Text.of("⟵ Back"), (btn) -> client.setScreen(parent)));
-        this.addDrawableChild(new SpotifyPlaylistItemWidget(Position.center(width / 2, (height / 3))));
+        this.addRenderableWidget(new SpotifyTextButtonWidget());
+        this.addRenderableWidget(new SpotifyTextButtonWidget(2, height - 22, 46, 20, new TextComponent("⟵ Back"), (btn) -> btn.setScreen(parent)));
+        this.addRenderableWidget(new SpotifyPlaylistItemWidget(width / 2, (height / 3)));
 
         var currentlyPlaying = SpoticraftClient.NOW_PLAYING;
 

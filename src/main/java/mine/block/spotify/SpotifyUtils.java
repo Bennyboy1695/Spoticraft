@@ -1,13 +1,5 @@
 package mine.block.spotify;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.Identifier;
-import se.michaelthelin.spotify.model_objects.miscellaneous.CurrentlyPlaying;
-import se.michaelthelin.spotify.model_objects.specification.Episode;
-import se.michaelthelin.spotify.model_objects.specification.Track;
 
 import java.io.IOException;
 import java.io.InputStream;

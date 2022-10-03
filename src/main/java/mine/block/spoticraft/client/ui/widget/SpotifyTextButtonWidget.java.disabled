@@ -1,0 +1,18 @@
+package mine.block.spoticraft.client.ui.widget;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Widget;
+import net.minecraft.network.chat.Component;
+
+public class SpotifyTextButtonWidget extends Button {
+    public SpotifyTextButtonWidget(int x, int y, int width, int height, Component message, OnPress action) {
+        super(x, y, width, height, message, action);
+    }
+
+    @Override
+    public void render(PoseStack matrices, int mouseX, int mouseY, float delta) {
+        super.render(matrices, mouseX, mouseY, delta);
+        fill(matrices, this.x+1, this.y+1, this.x+this.width - 1, this.y+this.height - 1, 0xFF000000);
+    }
+}

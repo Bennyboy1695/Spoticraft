@@ -1,17 +1,24 @@
 package mine.block.spotify;
 
 import com.github.winterreisender.webviewko.WebviewKo;
+import com.sun.jna.Native;
 import com.sun.net.httpserver.HttpServer;
 import mine.block.spoticraft.client.SpoticraftClient;
 import mine.block.spotify.server.*;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
+import net.minecraftforge.fml.loading.FMLPaths;
 import org.apache.hc.core5.http.ParseException;
 import se.michaelthelin.spotify.SpotifyApi;
 import se.michaelthelin.spotify.exceptions.SpotifyWebApiException;
 import se.michaelthelin.spotify.model_objects.miscellaneous.CurrentlyPlaying;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -23,11 +30,14 @@ public class SpotifyHandler {
     public static SpotifyApi SPOTIFY_API;
     public static HashSet<SongChangeEvent> songChangeEvent = new HashSet<>();
 
+    static String getByProtectionDomain(Class clazz) throws URISyntaxException {
+        URL url = clazz.getProtectionDomain().getCodeSource().getLocation();
+        return Paths.get(url.toURI()).toString();
+    }
     public static void setup() {
 
         if(SpoticraftClient.CONFIG.empty) {
             LOGGER.info("No config present, starting oauth creation screen.");
-
             WebviewKo webview = new WebviewKo(1, null);
             webview.title("Spoticraft - Setup");
             webview.size(398, 677, WebviewKo.WindowHint.Fixed);
@@ -99,7 +109,7 @@ public class SpotifyHandler {
                 try {
                     CURRENTLY_PLAYING = SPOTIFY_API.getUsersCurrentlyPlayingTrack().build().execute();
                     if (CURRENTLY_PLAYING == null) return;
-                    MinecraftClient.getInstance().executeTask(() -> songChangeEvent.forEach(event -> event.run(CURRENTLY_PLAYING)));
+                    Minecraft.getInstance().execute(() -> songChangeEvent.forEach(event -> event.run(CURRENTLY_PLAYING)));
                 } catch (IOException | SpotifyWebApiException | ParseException e) {
                     LOGGER.warn("Failed to poll: " + e);
                 }

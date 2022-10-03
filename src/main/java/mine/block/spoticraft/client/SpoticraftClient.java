@@ -1,20 +1,24 @@
 package mine.block.spoticraft.client;
 
-import mine.block.spoticraft.client.ui.SpotifyScreen;
+import com.mojang.blaze3d.platform.NativeImage;
 import mine.block.spoticraft.client.ui.SpotifyToast;
 import mine.block.spotify.SpotifyHandler;
 import mine.block.utils.LiveWriteProperties;
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ScreenOpenEvent;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.DistExecutor;
+import net.minecraftforge.fml.IExtensionPoint;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.forgespi.Environment;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,12 +28,12 @@ import se.michaelthelin.spotify.model_objects.specification.Track;
 
 import java.io.IOException;
 import java.net.URL;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.concurrent.*;
 
-@Environment(EnvType.CLIENT)
-public class SpoticraftClient implements ClientModInitializer {
+@Mod("spoticraft")
+@Mod.EventBusSubscriber(Dist.CLIENT)
+public class SpoticraftClient {
     
     public static final LiveWriteProperties CONFIG = new LiveWriteProperties();
     public static final Logger LOGGER = LoggerFactory.getLogger("Spoticraft");
@@ -37,8 +41,15 @@ public class SpoticraftClient implements ClientModInitializer {
     public static boolean MC_LOADED = false;
     public static CurrentlyPlaying NOW_PLAYING = null;
     public static NativeImage NOW_ART = null;
-    public static Identifier NOW_ID = null;
-    public static HashMap<Identifier, NativeImage> TEXTURE = new HashMap<>();
+    public static ResourceLocation NOW_ID = null;
+    public static HashMap<ResourceLocation, NativeImage> TEXTURE = new HashMap<>();
+
+    public SpoticraftClient() {
+        ModLoadingContext.get().registerExtensionPoint(IExtensionPoint.DisplayTest.class, () -> new IExtensionPoint.DisplayTest(() -> "ANY", (remote, isServer) -> true));
+        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
+            FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onInitializeClient);
+        });
+    }
 
     public static void run(CurrentlyPlaying currentlyPlaying) {
         if(!MC_LOADED) return;
@@ -47,7 +58,7 @@ public class SpoticraftClient implements ClientModInitializer {
 
             var item = currentlyPlaying.getItem();
 
-            Identifier texture = new Identifier("spotify", currentlyPlaying.getItem().getId().toLowerCase());
+            ResourceLocation texture = new ResourceLocation("spotify", currentlyPlaying.getItem().getId().toLowerCase());
 
             if (!TEXTURE.containsKey(texture)) {
                 if (item instanceof Track track) {
@@ -56,7 +67,7 @@ public class SpoticraftClient implements ClientModInitializer {
                         TEXTURE.put(texture, NOW_ART);
                         NOW_ID = texture;
 
-                        MinecraftClient.getInstance().getTextureManager().registerTexture(NOW_ID, new NativeImageBackedTexture(NOW_ART));
+                        Minecraft.getInstance().getTextureManager().register(NOW_ID, new DynamicTexture(NOW_ART));
                     } catch (IOException e) {
                         return;
                     }
@@ -65,7 +76,7 @@ public class SpoticraftClient implements ClientModInitializer {
                         NOW_ART = NativeImage.read(new URL(((Episode) currentlyPlaying.getItem()).getImages()[0].getUrl()).openStream());
                         TEXTURE.put(texture, NOW_ART);
                         NOW_ID = texture;
-                        MinecraftClient.getInstance().getTextureManager().registerTexture(NOW_ID, new NativeImageBackedTexture(NOW_ART));
+                        Minecraft.getInstance().getTextureManager().register(NOW_ID, new DynamicTexture(NOW_ART));
                     } catch (IOException e) {
                         return;
                     }
@@ -76,19 +87,24 @@ public class SpoticraftClient implements ClientModInitializer {
             }
 
 
-            if (MinecraftClient.getInstance().inGameHud != null && !(MinecraftClient.getInstance().currentScreen instanceof SpotifyScreen) && NOW_ART != null) {
-                MinecraftClient.getInstance().getToastManager().add(new SpotifyToast(currentlyPlaying));
+            if (Minecraft.getInstance().screen!= null && NOW_ART != null) {
+                Minecraft.getInstance().getToasts().addToast(new SpotifyToast(currentlyPlaying));
             }
         }
 
 
-        if (MinecraftClient.getInstance().currentScreen instanceof SpotifyScreen spotifyScreen) {
-            spotifyScreen.progress = (float) currentlyPlaying.getProgress_ms() / (float) currentlyPlaying.getItem().getDurationMs();
+    }
+
+    @SubscribeEvent
+    public void onTitleScreen(ScreenOpenEvent event) {
+        if (event.getScreen() instanceof TitleScreen) {
+            if (!MC_LOADED) {
+                MC_LOADED = true;
+            }
         }
     }
 
-    @Override
-    public void onInitializeClient() {
+    private void onInitializeClient(FMLClientSetupEvent event) {
         SpotifyHandler.setup();
 
         SpotifyHandler.PollingThread thread = new SpotifyHandler.PollingThread();
@@ -97,18 +113,11 @@ public class SpoticraftClient implements ClientModInitializer {
                 new SynchronousQueue<>());
         checkTasksExecutorService.execute(thread);
         SpotifyHandler.songChangeEvent.add(SpoticraftClient::run);
-
-        var key = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+/*        var key = KeyBinding.registerKeyBinding(new KeyBinding(
                 "key.spotify.open",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_P,
                 "category.spotify.main"
-        ));
-
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (key.wasPressed()) {
-                client.setScreen(new SpotifyScreen(client.currentScreen));
-            }
-        });
+        ));*/
     }
 }
